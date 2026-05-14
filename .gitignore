@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Backend runtime
+backend/garden.db
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Node
+node_modules/
+.next/
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+
+# PWA service worker (generated)
+frontend/public/sw.js
+frontend/public/workbox-*.js
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+
+# HuggingFace model cache
+*.cache/
