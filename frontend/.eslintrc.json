@@ -1,7 +1,9 @@
 {
   "extends": ["next/core-web-vitals"],
   "rules": {
+    "no-unused-vars": "off",
     "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     "@typescript-eslint/no-explicit-any": "warn"
-  }
+  },
+  "plugins": ["@typescript-eslint"]
 }

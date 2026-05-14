@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import CameraCapture from "@/components/CameraCapture";
 import PlantCard from "@/components/PlantCard";
 import WikiPanel from "@/components/WikiPanel";

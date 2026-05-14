@@ -7,6 +7,7 @@ const withPWA = (await import("next-pwa")).default({
 });
 
 const nextConfig = {
+  output: "standalone",
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "upload.wikimedia.org" },
