@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import GardenGrid from "@/components/GardenGrid";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 export type GardenEntry = {
   id: number;

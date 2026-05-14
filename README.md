@@ -2,7 +2,7 @@
 
 A self-hosted plant identification app. Snap or upload a photo, get species predictions from a local ML model, read the Wikipedia article for the top match, and log finds to a personal garden collection with timestamp and GPS coordinates.
 
-No subscription. No account. No data leaves your machine — the only external call is fetching a Wikipedia summary.
+No subscription. No account. All inference runs locally. The only external calls are fetching a Wikipedia summary and the one-time download of the model weights (~1.3 GB) from HuggingFace on first startup.
 
 ---
 
@@ -34,6 +34,8 @@ The first backend startup downloads the plant classifier model (~330 MB) from Hu
 
 ## Quick start — local
 
+Running the backend outside Docker is the recommended path on Apple Silicon because the Metal GPU (MPS) is available natively but cannot be accessed from inside a Docker Linux VM.
+
 ```bash
 git clone <repo-url> gardener && cd gardener
 ```
@@ -42,10 +44,34 @@ git clone <repo-url> gardener && cd gardener
 
 ```bash
 cd backend
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+python -m venv .venv && source .venv/bin/activate
 ```
+
+Install PyTorch **before** the rest of the requirements. The install command differs by platform:
+
+| Platform | Command |
+|---|---|
+| macOS Apple Silicon | `pip install torch torchvision` |
+| macOS Intel | `pip install torch torchvision` |
+| Linux CPU-only | `pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu` |
+| Linux + CUDA | `pip install torch torchvision` (picks up CUDA automatically) |
+
+Then install the remaining dependencies and start the server:
+
+```bash
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8001
+```
+
+**First run** downloads the model weights (~1.3 GB) from HuggingFace and the iNat2021 species list (~10 MB). Both are cached in `~/.cache/` and reused on every subsequent startup. Expect the first request to take a minute or two while the model loads.
+
+To confirm MPS is active, look for this line in the backend log:
+
+```
+INFO  classifier:classifier.py  Device: mps
+```
+
+If you see `cpu` instead, torch was installed without MPS support — reinstall from the table above.
 
 **Terminal 2 — frontend**
 
@@ -57,6 +83,8 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+> **Docker vs. local**: Docker is convenient but runs inference on CPU (the Linux VM cannot access the Mac GPU). For the best experience on Apple Silicon, run the backend locally and Docker-compose only the frontend, or run everything locally as shown above.
+
 ---
 
 ## Quick start — Docker
@@ -65,7 +93,52 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 docker compose up
 ```
 
-This builds both images and starts the backend on port 8000 and the frontend on port 3000. The HuggingFace model cache is persisted in a Docker volume so it survives container restarts.
+This builds both images and starts the backend on port 8001 and the frontend on port 3000. The HuggingFace model cache is persisted in a Docker volume so it survives container restarts.
+
+### Rebuilding containers
+
+Rebuild after changing Python dependencies, Dockerfiles, or environment variables:
+
+```bash
+# Rebuild all images and restart
+docker compose up --build
+
+# Rebuild a single service (faster when only the backend changed)
+docker compose up --build backend
+
+# Force a full rebuild from scratch (clears layer cache)
+docker compose build --no-cache
+docker compose up
+```
+
+### Stopping and cleaning up
+
+```bash
+# Stop containers, keep volumes (model cache preserved)
+docker compose down
+
+# Stop containers and delete volumes (removes downloaded model cache)
+docker compose down -v
+```
+
+### Switching the ML model
+
+The classifier uses [EVA-02 Large fine-tuned on iNaturalist 2021](https://huggingface.co/timm/eva02_large_patch14_clip_336.merged2b_ft_inat21), downloaded automatically from HuggingFace on first startup (~1.3 GB). It recognises **10,000 species** including common garden plants, crops, and wildflowers.
+
+The model is controlled by the `PLANT_MODEL_REPO` env var and can point to any [timm](https://huggingface.co/timm) model hosted on HuggingFace:
+
+| Model | Size | top-1 (iNat21) | Notes |
+|---|---|---|---|
+| `hf_hub:timm/eva02_large_patch14_clip_336.merged2b_ft_inat21` | 1.3 GB | 92% | Default |
+| `hf_hub:timm/vit_large_patch14_clip_336.openai_ft_inat21` | 1.2 GB | ~88% | Faster |
+
+To switch models, update `PLANT_MODEL_REPO` in `docker-compose.yml` and clear the cached weights:
+
+```bash
+docker compose down -v && docker compose up --build
+```
+
+The `-v` flag clears the HuggingFace model cache so the new weights are downloaded fresh.
 
 ---
 
@@ -108,7 +181,7 @@ If your backend and frontend are running on a desktop machine, replace `localhos
 
 ```bash
 # frontend/.env.local
-NEXT_PUBLIC_API_URL=http://192.168.1.42:8000
+NEXT_PUBLIC_API_URL=http://192.168.1.42:8001
 ```
 
 Then restart the frontend dev server. You can then open the app on your phone by navigating to `http://192.168.1.42:3000`.
@@ -169,8 +242,9 @@ pre-commit run --all-files
 | Variable | Default | Description |
 |---|---|---|
 | `DATABASE_URL` | `sqlite:///./garden.db` | SQLAlchemy database URL |
-| `PLANT_MODEL` | `umucahit/PlantNet-300K` | HuggingFace model identifier |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Backend URL used by the browser |
+| `PLANT_MODEL_REPO` | `hf_hub:timm/eva02_large_patch14_clip_336.merged2b_ft_inat21` | HuggingFace timm model to use |
+| `INAT_CACHE_DIR` | `/root/.cache/inat21` | Where the iNat2021 categories file is cached |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8001` | Backend URL used by the browser |
 
 ### Adding a new backend endpoint
 

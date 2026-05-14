@@ -1,4 +1,5 @@
 import logging
+import os
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -16,7 +17,7 @@ import wiki
 from database import GardenEntry, create_tables, get_db
 from models import GardenEntryCreate, GardenEntryResponse, IdentifyResponse, WikiSummary
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper())
 logger = logging.getLogger(__name__)
 
 UPLOADS_DIR = Path("uploads")
@@ -66,8 +67,8 @@ async def identify(image: UploadFile = File(...)):
 
 
 @app.get("/wiki/{species_name}", response_model=WikiSummary | None)
-async def get_wiki(species_name: str):
-    summary = await wiki.get_summary(species_name)
+async def get_wiki(species_name: str, common_name: str | None = None):
+    summary = await wiki.get_summary(species_name, common_name)
     return summary
 
 

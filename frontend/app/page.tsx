@@ -6,7 +6,7 @@ import PlantCard from "@/components/PlantCard";
 import WikiPanel from "@/components/WikiPanel";
 import SaveButton from "@/components/SaveButton";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 export type Prediction = {
   species: string;
@@ -67,9 +67,9 @@ export default function Home() {
 
       if (preds.length > 0) {
         const top = preds[0];
-        const wikiRes = await fetch(
-          `${API}/wiki/${encodeURIComponent(top.species)}`
-        );
+        const wikiUrl = new URL(`${API}/wiki/${encodeURIComponent(top.species)}`);
+        if (top.common_name) wikiUrl.searchParams.set("common_name", top.common_name);
+        const wikiRes = await fetch(wikiUrl.toString());
         if (wikiRes.ok) {
           setWiki(await wikiRes.json());
         } else {
